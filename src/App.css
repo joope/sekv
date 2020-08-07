@@ -36,3 +36,19 @@
     transform: rotate(360deg);
   }
 }
+
+.task .todo {
+  background: grey;
+}
+
+.task .inProgress {
+  background: yellow;
+}
+
+.task .done {
+  background: greenyellow;
+}
+
+.task .canceled {
+  background: red;
+}
