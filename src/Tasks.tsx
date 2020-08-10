@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { observer } from "mobx-react";
-import Sequence from "./Seqvence";
-import Task from "./Task";
+import Sequence from "./models/Seqvence";
+import Task from "./models/Task";
 
 type TasksProps = {
   sequence: Sequence;

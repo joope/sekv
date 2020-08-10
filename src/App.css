@@ -52,3 +52,15 @@
 .task .canceled {
   background: red;
 }
+
+.activities button {
+  margin: 7px;
+  padding: 7px 14px;
+  background: lightgray;
+  border: none;
+  border-radius: 14px;
+}
+
+.activities .active {
+  background: yellow;
+}

@@ -1,52 +1,176 @@
 import React, { useState, useEffect } from "react";
+import axios from 'axios';
 import { observer } from "mobx-react";
-
 import "./App.css";
-import Sequence from "./Seqvence";
-import Tasks from "./Tasks";
-import Task from "./Task";
 
-const Sequences = [new Sequence("Workout"), new Sequence("Morning")];
-// const Tasks = [new Task("Brush teeth"), new Task("Invent cure for cancer")];
+type Activity = {
+  name: string,
+  startedAt: number | null,
+  endedAt: number | null,
+  status: "todo" | "active" | "canceled" | "done",
+  duration: number,
+}
+
+type appState = {
+  currentActivity: Activity,
+  newActivityName: string,
+  activities: string[],
+  events: Activity[],
+}
+
+const oldState = window.localStorage.getItem('appState');
+
+const appState:appState = oldState ? JSON.parse(oldState) : {
+  currentActivity: {
+    name: '',
+    startedAt: null,
+    endedAt: null,
+    duration: 0,
+    status: 'todo'
+  },
+  newActivityName: '',
+  activities: [
+    "Workout",
+    "Meditation",
+    "Brush teeth",
+    "Study",
+    "Eat",
+    "Browse internet",
+    "Research",
+    "Misc",
+    "Shower",
+    "Thinking",
+    "Socialising"
+  ],
+  events: [
+  ],
+}
+
 
 function SequenceView() {
-  const [name, setName] = useState("");
-  const [sequences, setSequences] = useState<Sequence[]>(Sequences);
-  const [currentSequence, setCurrentSequence] = useState<Sequence>();
-  useEffect(() => {
-    setName("somehting else");
-  }, []);
+  const [state, setState] = useState(appState);
 
-  const handleNewSequence = (e: any) => {
+  const handleNewActivity = (e: any) => {
     e.preventDefault();
-    setSequences([...sequences, new Sequence(name)]);
-    setName("");
+    if (!state.newActivityName) return;
+    setState({
+      ...state,
+      activities: [
+        ...state.activities, 
+        state.newActivityName
+      ],
+      newActivityName: '',
+    });
+    axios.post('https://api.joope.net/activities', {name: state.newActivityName});
   };
 
-  if (currentSequence) {
-    return (
-      <Tasks
-        sequence={currentSequence}
-        setCurrentSequence={setCurrentSequence}
-      />
-    );
+  const stopActivity = () => {
+    const event:Activity =           {
+      ...state.currentActivity,
+      status: 'done',
+      duration: Date.now() - (state.currentActivity.startedAt || 0),
+      endedAt: Date.now()
+    }
+    setState({
+      ...state,
+      currentActivity: {
+        name: '',
+        status: 'todo',
+        startedAt: null,
+        endedAt: null,
+        duration: 0,
+      },
+      events: [
+        ...state.events,
+        event,
+      ]
+    });
+    axios.post('https://api.joope.net/events', event);
   }
+
+  const changeActivity  = (activity:string) => {
+    const event:Activity =           {
+      ...state.currentActivity,
+      status: 'done',
+      duration: Date.now() - (state.currentActivity.startedAt || 0),
+      endedAt: Date.now()
+    }
+    setState({
+      ...state,
+      currentActivity: {
+        name: activity,
+        status: 'active',
+        startedAt: Date.now(),
+        endedAt: null,
+        duration: 0,
+      },
+      events: [
+        ...state.events,
+        event,
+      ]
+    });
+    axios.post('https://api.joope.net/events', event);
+  }
+
+  const handleStartActivity = (activity: string) => {
+    if (activity === state.currentActivity.name) {
+      return stopActivity();
+    }
+
+    if (state.currentActivity.name && state.currentActivity.name !== activity) {
+      return changeActivity(activity);
+    }
+    setState({
+      ...state,
+      currentActivity: {
+        name: activity,
+        status: 'active',
+        startedAt: Date.now(),
+        endedAt: null,
+        duration: 0,
+      },
+    })
+  }
+
+  const updateNewActivityName = (e:any) => {
+    setState({
+      ...state,
+      newActivityName: e.target.value,
+    })
+  }
+
+  useEffect(() => {
+    window.localStorage.setItem('appState', JSON.stringify(state));
+  }, [state])
+
+  useEffect(() => {
+    axios.get('https://api.joope.net/events')
+      .then(({data}) => {
+        setState({
+          ...state,
+          events: data
+        })
+      })
+  },[])
 
   return (
     <div className="App">
-      <header className="App-header">
-        {sequences.map(sequence => (
-          <h2 onClick={() => setCurrentSequence(sequence)}>{sequence.name}</h2>
+      <div className="activities">
+        {state.activities.map(activity => (
+          <button key={activity} className={activity === state.currentActivity.name ? 'active' : 'todo'} onClick={() => handleStartActivity(activity)}>{activity}</button>
         ))}
-        <form onSubmit={handleNewSequence}>
+        <form onSubmit={handleNewActivity}>
           <input
             type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
+            value={state.newActivityName}
+            onChange={updateNewActivityName}
           />
           <button type="submit">Add</button>
         </form>
-      </header>
+      </div>
+      {state.events.map(event => (
+          <p key={event.name + event.startedAt} className="event">{event.name} {event.duration / 1000}s</p>
+        ))}
     </div>
   );
 }
