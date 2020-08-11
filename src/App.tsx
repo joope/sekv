@@ -18,7 +18,7 @@ type appState = {
   events: Activity[],
 }
 
-const oldState = window.localStorage.getItem('appState');
+const oldState = null; // window.localStorage.getItem('appState');
 
 const appState:appState = oldState ? JSON.parse(oldState) : {
   currentActivity: {
@@ -30,17 +30,7 @@ const appState:appState = oldState ? JSON.parse(oldState) : {
   },
   newActivityName: '',
   activities: [
-    "Workout",
-    "Meditation",
-    "Brush teeth",
-    "Study",
-    "Eat",
-    "Browse internet",
-    "Research",
-    "Misc",
-    "Shower",
-    "Thinking",
-    "Socialising"
+
   ],
   events: [
   ],
@@ -81,8 +71,8 @@ function SequenceView() {
         duration: 0,
       },
       events: [
-        ...state.events,
         event,
+        ...state.events,
       ]
     });
     axios.post('https://api.joope.net/events', event);
@@ -105,8 +95,8 @@ function SequenceView() {
         duration: 0,
       },
       events: [
-        ...state.events,
         event,
+        ...state.events,
       ]
     });
     axios.post('https://api.joope.net/events', event);
@@ -144,20 +134,25 @@ function SequenceView() {
   }, [state])
 
   useEffect(() => {
-    axios.get('https://api.joope.net/events')
-      .then(({data}) => {
-        setState({
-          ...state,
-          events: data
-        })
+    const getData = async () => {
+      const {data:activities} = await axios.get('https://api.joope.net/activities');
+      const {data:events} = await axios.get('https://api.joope.net/events');
+      const mappedActivities = activities.map((a:any) => a.name);
+      const sortedEvents = events.sort((a:any,b:any) => b.endedAt - a.endedAt);
+      setState({
+        ...state,
+        activities: mappedActivities,
+        events: sortedEvents,
       })
+    }
+    getData();
   },[])
 
   return (
     <div className="App">
       <div className="activities">
-        {state.activities.map(activity => (
-          <button key={activity} className={activity === state.currentActivity.name ? 'active' : 'todo'} onClick={() => handleStartActivity(activity)}>{activity}</button>
+        {state.activities.map((activity, index) => (
+          <button key={activity + index} className={activity === state.currentActivity.name ? 'active' : 'todo'} onClick={() => handleStartActivity(activity)}>{activity}</button>
         ))}
         <form onSubmit={handleNewActivity}>
           <input
@@ -169,7 +164,7 @@ function SequenceView() {
         </form>
       </div>
       {state.events.map(event => (
-          <p key={event.name + event.startedAt} className="event">{event.name} {event.duration / 1000}s</p>
+          <p key={event.name + event.startedAt} className="event">{event.name} {(event.duration / 1000 / 60).toFixed(0)} min</p>
         ))}
     </div>
   );
