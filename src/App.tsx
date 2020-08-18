@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from "react";
+import Timeline from 'react-calendar-timeline';
+import 'react-calendar-timeline/lib/Timeline.css';
 import axios from 'axios';
 import { observer } from "mobx-react";
+import moment from 'moment';
 import "./App.css";
 
 type Activity = {
+  id?: string,
   name: string,
   startedAt: number | null,
   endedAt: number | null,
@@ -39,6 +43,15 @@ const appState:appState = oldState ? JSON.parse(oldState) : {
 
 function SequenceView() {
   const [state, setState] = useState(appState);
+  const calendarGroups = state.activities.map((a) => ({id: a, title: a}));
+  const timelineItems = state.events.map((e:Activity) => ({
+    ...e,
+    id: e.id || '1',
+    group: e.name,
+    title: '',
+    start_time: e.startedAt || 1,
+    end_time: e.endedAt || 1,
+  }))
 
   const handleNewActivity = (e: any) => {
     e.preventDefault();
@@ -148,6 +161,39 @@ function SequenceView() {
     getData();
   },[])
 
+  const handleItemDrag = ({eventType, itemId, time, edge, newGroupOrder}:any) => {
+    const currentItem = state.events.find(e => e.id === itemId);
+    if (!currentItem) return;
+  
+    let newItem = currentItem;
+
+    if (eventType === 'move') {
+      const newGroup = calendarGroups[newGroupOrder]?.id || currentItem?.name || 'jotain';
+      newItem = {
+        ...currentItem,
+        name: newGroup,
+        startedAt: time,
+        endedAt: currentItem?.endedAt || null,
+      }
+    }
+
+    if (eventType === 'resize') {
+      const newStartedTime = edge === 'left' ? time : currentItem?.startedAt || null;
+      const newEndedTime = edge === 'right' ? time : currentItem?.endedAt || null;
+      newItem = {
+        ...currentItem,
+        startedAt: newStartedTime,
+        endedAt: newEndedTime,
+      }
+    }
+    console.log(newItem)
+    axios.put('https://api.joope.net/events/' + newItem.id, newItem);
+    setState({
+      ...state,
+      events: state.events.map(e => e.id === itemId ? newItem : e)
+    })
+  }
+
   return (
     <div className="App">
       <div className="activities">
@@ -163,9 +209,17 @@ function SequenceView() {
           <button type="submit">Add</button>
         </form>
       </div>
-      {state.events.map(event => (
+      {calendarGroups && timelineItems.length !== 0 && <Timeline 
+        groups={calendarGroups}
+        items={timelineItems}
+        defaultTimeStart={moment().add(-7, 'day')}
+        defaultTimeEnd={moment().add(1, 'hour')}
+        onItemDrag={handleItemDrag}
+      /> }
+
+      {/* {state.events.map(event => (
           <p key={event.name + event.startedAt} className="event">{event.name} {(event.duration / 1000 / 60).toFixed(0)} min</p>
-        ))}
+        ))} */}
     </div>
   );
 }
